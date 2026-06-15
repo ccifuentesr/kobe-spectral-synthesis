@@ -1,0 +1,17 @@
+# Direct dependencies of kobe.spectral_synthesis.py
+# Python 3.12 recommended (tested on 3.12).
+#
+# NOTE: iSpec is NOT installable from PyPI. It is a separate external package
+# that must be installed and compiled by hand, together with a radiative
+# transfer code (Turbospectrum is required for the default configuration).
+# See the README ("Prerequisites") for instructions. The packages below are
+# only what this script imports directly; iSpec brings its own dependencies.
+
+numpy>=2.2
+scipy>=1.15
+matplotlib>=3.10
+astropy>=7.1
+
+# Optional: coloured terminal output. The script falls back to plain text
+# if termcolor is not installed.
+termcolor>=2.4

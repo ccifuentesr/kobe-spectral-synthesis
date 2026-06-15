@@ -1,0 +1,37 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.python-version
+
+# ── OS / editor ─────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+
+# ── Matplotlib cache (set via MPLCONFIGDIR in the script) ───────────────────
+kobe_matplotlib_cache/
+
+# ── Confidential data: never commit ─────────────────────────────────────────
+# Target catalog and all spectra are proprietary KOBE program data.
+# A column-only template (kobe_allstars.template.csv) documents the schema.
+kobe_allstars.csv
+
+# Input spectra (per-target merged FITS) live outside the repo (KOBE_SPECTRA_DIR).
+*_merged.fits
+
+# PARSEC isochrone grid (~36 MB). Download from the CMD service (see README).
+parsec/parsec_isochrones.dat.txt
+
+# Gaia Benchmark Star reference spectra (~26 MB total). Obtain from the
+# archives listed in the README; place under gbs_spectra/.
+gbs_spectra/*.fits
+gbs_spectra/*.fts
+
+# ── Pipeline outputs ────────────────────────────────────────────────────────
+output/
+*.pdf
+*.png
+ispec.log
