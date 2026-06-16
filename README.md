@@ -3,21 +3,24 @@
 Spectral synthesis and stellar parameter estimation for CARMENES/KOBE merged
 spectra, built on top of [iSpec](https://www.blancocuaresma.com/s/iSpec).
 Given a 1D, RV-corrected spectrum, the pipeline measures the radial velocity by
-cross-correlation and then derives the effective temperature, surface gravity
-and metallicity (Teff, log g, [M/H]) by full spectral synthesis, with derived
-mass, radius and age from PARSEC isochrones.
+cross-correlation and then fits the effective temperature and metallicity
+(Teff, [M/H]) by spectral synthesis. Crucially, surface gravity is **not**
+fitted: log g is fixed from the stellar radius and mass, where the radius comes
+from the Stefan–Boltzmann law (bolometric luminosity from SED fitting + Teff)
+and the mass from an empirical mass–luminosity relation (Eker 2018). With log g
+fixed this way — and the remaining nuisance parameters (vmic, vmac, vsini) also
+held fixed — the synthesis solves only for Teff and [M/H]. Stellar age is then
+obtained from PARSEC isochrones.
 
 The pipeline is tuned for **late-K dwarfs** (K5–K7 V, Teff ≈ 4000–4800 K)
 observed with **CARMENES VIS** (R ≈ 94 600, 562–920 nm). The merged 1D spectra
 are produced upstream by `kobe.merge_orders.py` and are already RV-corrected
-(SERVAL pipeline). It can be adapted to other instruments and spectral types.
+(the [SERVAL](https://github.com/mzechmeister/serval) pipeline). It can be
+adapted to other instruments and spectral types.
 
-> This repository contains two scripts: `kobe.spectral_synthesis.py`
-> (~4 900 lines, the analysis pipeline) and `kobe.merge_orders.py`, the upstream
-> tool that turns 2D CARMENES echelle templates into the merged 1D input the
-> pipeline reads. Both are research code: readable and heavily documented, but
-> built around one observing program. The notes below explain what you need to
-> run them elsewhere.
+> This repository contains two scripts: `kobe.spectral_synthesis.py` and
+> `kobe.merge_orders.py`, the upstream tool that turns 2D CARMENES echelle
+> templates into the merged 1D input the pipeline reads.
 
 ---
 
@@ -73,16 +76,16 @@ git — you supply your own:
 | --- | --- | --- | --- |
 | `ges_lines_kobe_masked.txt` | ~12 KB | Default Fe line list (GES, 7 Teff-biasing lines masked) | yes |
 | `kobe_allstars.template.csv` | tiny | Column-only template for the target catalog | yes |
-| `kobe_allstars.csv` | ~120 KB | Target catalog (seeds, luminosities, flags) | **no — confidential** |
-| `gbs_spectra/` | ~26 MB | Gaia Benchmark Star reference spectra for validation | **no — confidential** |
-| `{TARGET}_merged.fits` | varies | Input spectra, one per target (in `KOBE_SPECTRA_DIR`) | **no — confidential** |
+| `kobe_allstars.csv` | ~120 KB | Target catalog (seeds, luminosities, flags) | **no — user must provide** |
+| `gbs_spectra/` | ~26 MB | Gaia Benchmark Star reference spectra for validation | **no — user must provide** |
+| `{TARGET}_merged.fits` | varies | Input spectra, one per target (in `KOBE_SPECTRA_DIR`) | **no — user must provide** |
 | `parsec/parsec_isochrones.dat.txt` | ~36 MB | PARSEC v1.2S isochrones → log g, mass, age | no — download |
 
-> **Confidential KOBE data.** The target catalog and all spectra (benchmark and
-> per-target) are proprietary program data and are **not distributed** with this
-> repository. To run the pipeline on your own targets, provide a
-> `kobe_allstars.csv` matching the schema in `kobe_allstars.template.csv` and
-> place your merged spectra in `KOBE_SPECTRA_DIR`.
+> The target catalog and all spectra (benchmark and per-target) are not
+> distributed with this repository — you supply your own. To run the pipeline on
+> your own targets, provide a `kobe_allstars.csv` matching the schema in
+> `kobe_allstars.template.csv` and place your merged spectra in
+> `KOBE_SPECTRA_DIR`.
 
 #### Target catalog schema
 
@@ -186,10 +189,12 @@ this repository (see Data files above); supply your own to use it.
    windowing, spline continuum normalization).
 2. **Radial velocity** via cross-correlation against a K5 mask.
 3. **vsini** estimate from the CCF FWHM.
-4. **Spectral synthesis fit** for Teff, log g, [M/H] (iSpec + Turbospectrum)
-   over selected Fe-line regions.
-5. **Derived quantities**: log g, mass and age from PARSEC isochrones and the
-   catalog luminosity (Stefan–Boltzmann + Eker 2018 mass–luminosity relation).
+4. **Spectral synthesis fit** for Teff and [M/H] (iSpec + Turbospectrum) over
+   selected Fe-line regions, with log g, vmic, vmac and vsini held fixed.
+5. **Derived quantities**: radius from the Stefan–Boltzmann law (SED bolometric
+   luminosity + Teff), mass from the Eker 2018 mass–luminosity relation, and
+   log g from that mass and radius (fixed during the fit, then refreshed with the
+   fitted Teff). Stellar age from PARSEC isochrones.
 6. **Quality flags** (low S/N, RV offset, bad fit, vsini discrepancy, activity).
 
 Outputs land in `output/` (`kobe_results.csv` plus optional diagnostic PDFs).
