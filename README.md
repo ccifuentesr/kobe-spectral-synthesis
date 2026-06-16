@@ -4,13 +4,13 @@ Spectral synthesis and stellar parameter estimation for CARMENES/KOBE merged
 spectra, built on top of [iSpec](https://www.blancocuaresma.com/s/iSpec).
 Given a 1D, RV-corrected spectrum, the pipeline measures the radial velocity by
 cross-correlation and then fits the effective temperature and metallicity
-(Teff, [M/H]) by spectral synthesis. Crucially, surface gravity is **not**
+(Teff, [M/H]) by spectral synthesis. Crucially, surface gravity is not
 fitted: log g is fixed from the stellar radius and mass, where the radius comes
 from the Stefan–Boltzmann law (bolometric luminosity from SED fitting + Teff)
-and the mass from an empirical mass–luminosity relation (Eker 2018). With log g
-fixed this way — and the remaining nuisance parameters (vmic, vmac, vsini) also
-held fixed — the synthesis solves only for Teff and [M/H]. Stellar age is then
-obtained from PARSEC isochrones.
+and the mass from an empirical mass–luminosity relation (Eker et al. 2018). With log g
+fixed this way and the remaining nuisance parameters (vmic, vmac, vsini) also
+held fixed, the synthesis solves only for Teff and [M/H]. Stellar age can then
+estimated from PARSEC isochrones.
 
 The pipeline is tuned for **late-K dwarfs** (K5–K7 V, Teff ≈ 4000–4800 K)
 observed with **CARMENES VIS** (R ≈ 94 600, 562–920 nm). The merged 1D spectra
