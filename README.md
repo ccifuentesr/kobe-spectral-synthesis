@@ -7,10 +7,16 @@ cross-correlation and then fits the effective temperature and metallicity
 (Teff, [M/H]) by spectral synthesis. Crucially, surface gravity is not
 fitted: log g is fixed from the stellar radius and mass, where the radius comes
 from the Stefan–Boltzmann law (bolometric luminosity from SED fitting + Teff)
-and the mass from an empirical mass–luminosity relation (Eker et al. 2018). With log g
-fixed this way and the remaining nuisance parameters (vmic, vmac, vsini) also
-held fixed, the synthesis solves only for Teff and [M/H]. Stellar age can then
-estimated from PARSEC isochrones.
+and the mass is read from the target catalog (`M_Msol`). For the KOBE sample,
+these catalog masses were computed beforehand from bolometric luminosities
+using the empirical mass–luminosity relation of Eker et al. (2018); the
+synthesis script does not recompute them. With log g fixed this way and the
+remaining nuisance parameters (vmic, vmac, vsini) also
+held fixed, science targets are fitted in two stages: first [M/H] with the
+catalog Teff and initial log g fixed, then Teff with that fitted [M/H] and the
+initial log g held fixed. The final log g is recomputed from the fitted Teff
+afterward, without another synthesis fit. Stellar age can then be estimated
+from PARSEC isochrones.
 
 The pipeline is tuned for **late-K dwarfs** (K5–K7 V, Teff ≈ 4000–4800 K)
 observed with **CARMENES VIS** (R ≈ 94 600, 562–920 nm). The merged 1D spectra
@@ -90,8 +96,12 @@ git — you supply your own:
 #### Target catalog schema
 
 `kobe_allstars.csv` is read once and keyed by `KOBE_id`. The script uses these
-columns (missing values are tolerated and fall back to defaults or skip the
-affected step):
+columns. Science targets require a matching catalog entry, a finite
+`Teff_mamajek`, positive finite `M_Msol` and `Lbol`, and a finite, non-negative
+`Lberr`. Missing or invalid required values abort a single-target run or mark
+the affected batch target as an error. Missing metallicity seeds fall back to
+0.0; optional fields may be unavailable without preventing the fit. The GBS
+validation uses its separate reference catalog.
 
 | Column | Meaning |
 | --- | --- |
@@ -99,9 +109,24 @@ affected step):
 | `Teff_mamajek`, `eTeff_mamajek` | Seed Teff [K] and its uncertainty (V–K photometric) |
 | `Fe_H_marfil`, `Simbad_Fe_H` | Seed [Fe/H] [dex]; falls back to Simbad, then 0.0 |
 | `eFe_H_marfil` | Uncertainty on seed [Fe/H] |
-| `Lbol`, `Lberr` | Bolometric luminosity [L☉] and uncertainty (for log g / mass / age) |
+| `Lbol`, `Lberr` | Bolometric luminosity [L☉] and uncertainty (for radius / log g / age; also used upstream to derive KOBE masses) |
 | `logRHK`, `elogRHK` | Activity index (for activity flagging) |
-| `M_Msol`, `eM_Msol`, `R_Rsol`, `eR_Rsol` | Catalog mass / radius [solar units] |
+| `M_Msol`, `eM_Msol`, `R_Rsol`, `eR_Rsol` | Catalog mass / radius [solar units]; KOBE masses are precomputed with Eker et al. (2018) |
+
+For the 49-star KOBE science sample, the upstream mass calculation uses the
+very-low-mass branch of [Eker et al. (2018), Table 4](https://academic.oup.com/mnras/article/479/4/5491/5056185):
+
+```text
+log10(L/L☉) = 4.572 × log10(M/M☉) − 0.102
+M/M☉ = 10 ** ((log10(L/L☉) + 0.102) / 4.572)
+```
+
+This branch applies to `0.45 < M/M☉ ≤ 0.72`. The resulting masses are stored in
+`M_Msol` before running spectral synthesis and remain fixed throughout it.
+For other targets, supply an appropriate catalog mass: the synthesis does not
+select an Eker branch or derive a missing mass automatically. Its current
+log g uncertainty propagation treats the supplied mass as exact, using only
+the luminosity and temperature uncertainties.
 
 ---
 
@@ -112,11 +137,14 @@ to the original author setup. Set these before running (recommended), or edit
 the defaults near the top of `kobe.spectral_synthesis.py`:
 
 ```bash
-export KOBE_ISPEC_DIR=/path/to/ispec             # iSpec root (contains input/)
+export KOBE_ISPEC_DIR=/path/to/ispec/            # iSpec root (trailing slash; contains input/)
 export KOBE_DIR=/path/to/this/repo/              # repo root (trailing slash)
 export KOBE_SPECTRA_DIR=/path/to/merged_spectra  # holds {TARGET}_merged.fits
 export KOBE_TEMPLATE_DIR=/path/to/templates      # merge_orders: 2D templates in / merged out
 ```
+
+Both `KOBE_ISPEC_DIR` and `KOBE_DIR` require a trailing `/` because the script
+concatenates them with relative resource paths.
 
 Synthesis behaviour is controlled by module-level constants in the script
 (`SYNTH_CODE`, `USE_MOLECULES`, `LINELIST_SOURCE`, the GBS catalog, vmic/vmac
@@ -189,12 +217,15 @@ this repository (see Data files above); supply your own to use it.
    windowing, spline continuum normalization).
 2. **Radial velocity** via cross-correlation against a K5 mask.
 3. **vsini** estimate from the CCF FWHM.
-4. **Spectral synthesis fit** for Teff and [M/H] (iSpec + Turbospectrum) over
-   selected Fe-line regions, with log g, vmic, vmac and vsini held fixed.
+4. **Two-stage spectral synthesis fit** (iSpec + Turbospectrum) over selected
+   Fe-line regions: fit [M/H] at the catalog Teff, then fit Teff with that [M/H]
+   fixed. Initial log g, vmic, vmac and vsini remain fixed in both stages for
+   science targets; log g is refreshed afterward without repeating the fit.
 5. **Derived quantities**: radius from the Stefan–Boltzmann law (SED bolometric
-   luminosity + Teff), mass from the Eker 2018 mass–luminosity relation, and
-   log g from that mass and radius (fixed during the fit, then refreshed with the
-   fitted Teff). Stellar age from PARSEC isochrones.
+   luminosity + Teff) and log g from that radius and the fixed catalog mass
+   (`M_Msol`, computed upstream with Eker et al. 2018 for the KOBE sample).
+   The synthesis does not recalculate mass; it refreshes radius and log g with
+   the fitted Teff. Stellar age is estimated from PARSEC isochrones.
 6. **Quality flags** (low S/N, RV offset, bad fit, vsini discrepancy, activity).
 
 Outputs land in `output/` (`kobe_results.csv` plus optional diagnostic PDFs).
